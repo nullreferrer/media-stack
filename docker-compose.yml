@@ -1,0 +1,104 @@
+services:
+  gluetun:
+    image: ghcr.io/qdm12/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - "8080:8080"   # qBittorrent Web UI
+    environment:
+      - VPN_SERVICE_PROVIDER=expressvpn
+      - VPN_TYPE=openvpn
+      - OPENVPN_USER=${EXPRESSVPN_USERNAME}
+      - OPENVPN_PASSWORD=${EXPRESSVPN_PASSWORD}
+      - SERVER_COUNTRIES=${EXPRESSVPN_SERVER}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH}/config/gluetun:/gluetun
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: service:gluetun
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080
+    volumes:
+      - ${DATA_PATH}/config/qbittorrent:/config
+      - ${DATA_PATH}/torrents:/data/torrents
+    restart: unless-stopped
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH}/config/jellyfin:/config
+      - ${DATA_PATH}/media:/data/media
+    ports:
+      - "8096:8096"
+    restart: unless-stopped
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH}/config/jellyseerr:/app/config
+    ports:
+      - "5055:5055"
+    depends_on:
+      - jellyfin
+    restart: unless-stopped
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH}/config/radarr:/config
+      - ${DATA_PATH}:/data
+    ports:
+      - "7878:7878"
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH}/config/sonarr:/config
+      - ${DATA_PATH}:/data
+    ports:
+      - "8989:8989"
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH}/config/prowlarr:/config
+    ports:
+      - "9696:9696"
+    restart: unless-stopped
